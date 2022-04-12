@@ -1,6 +1,5 @@
 # docker-pub-sub-weather
-<<<<<<< HEAD
-=======
+
 
 Setup a docker environment to 
 1. confluentinc/cp-zookeeper:5.5.1 for Zookeeper
@@ -103,4 +102,3 @@ docker restart weather-publisher
    1. Database batch insert code
    2. Kafka consumer code 
    3. Kafka producer code
->>>>>>> master
