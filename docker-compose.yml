@@ -1,0 +1,69 @@
+version: "3.5"
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.5.1
+    container_name: zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      TZ: "${TZ-Europe/London}"
+    healthcheck:
+      test: "echo stat | nc localhost $$ZOOKEEPER_CLIENT_PORT"
+      start_period: 30s
+
+  kafka:
+    image: confluentinc/cp-kafka:5.5.1
+    container_name: kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      TZ: "${TZ-Europe/London}"
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "9092" ]
+      start_period: 30s
+
+  weather-db:
+    image: mysql:latest
+    volumes:
+      - "./.mysql-data/db:/var/lib/mysql"
+    restart: always
+    ports:
+      - '3306:3306'
+    environment:
+      HOST_HOSTNAME: docker-pub-sub-weather-weather-db-1
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: weather_db
+      MYSQL_USER: weather_db
+      MYSQL_PASSWORD: password
+
+  weather-publisher:
+    image: com.dp.practice/weather-publisher:latest
+    container_name: weather-publisher
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: "kafka:9092"
+      JSON_SRC: "weather.json.gz"
+      TOPIC: "weather_info"
+
+  weather-subscriber:
+    image: com.dp.practice/weather-subscriber:latest
+    container_name: weather-subscriber
+    depends_on:
+      - kafka
+      - mysql-db
+      - weather-publisher
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: "kafka:9092"
+      CONSUMER_GROUP_ID: "group-1"
+      TOPIC: "weather_info"
